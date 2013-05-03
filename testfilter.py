@@ -18,61 +18,74 @@ from socket import socket, IPPROTO_TCP, TCP_NODELAY, timeout, gethostbyname, \
     getprotobyname, AF_INET, SOL_IP, SOCK_RAW, SOCK_DGRAM, IP_TTL, gethostbyaddr, error, getaddrinfo, SOL_TCP
 
 
+
 class target:
     pass
 
 
-class test:
-    def test1(self, host, path="/"):
+class Test(object):
+    def __init__(self, host, path="/", verbose=False):
+        self.host    = host
+        self.path    = path
+        self.verbose = verbose
+
+    def test_dns_ip_block(self):
         print "## Test 1: Check DNS, and IP block: Testing Same IP, different Virtual Host"
         s = socket()
         s.setsockopt(IPPROTO_TCP, TCP_NODELAY, 1)
-        s.connect((host, 80))
-        path_str = "GET %s HTTP/1.1\r\n\r\n" % path
+        s.connect((self.host, 80))
+        path_str = "GET %s HTTP/1.1\r\n\r\n" % self.path
         s.send(path_str)
-        try:
-            print s.recv(4096)
+        try: 
+            self.process_responses(s.recv(4096), verbose=self.verbose)
         except timeout:
-            print "Timeout -- waited 5 seconds\n"
-
-    def test2(self, host, path="/"):
+            print "Timeout -- waited 5 seconds\n"   
+            
+    def test_browser_emulation(self):
         print "## Test 2: Emulating a real web browser: Testing Same IP, actual Virtual Host, single packet"
         s = socket()
         s.setsockopt(IPPROTO_TCP, TCP_NODELAY, 1)
-        s.connect((host, 80))
-        path_str = "GET %s HTTP/1.1\r\nHost: %s\r\n\r\n" % (path, host)
+        s.connect((self.host, 80))
+        path_str = "GET %s HTTP/1.1\r\nHost: %s\r\n\r\n" % (self.path, self.host)
         s.send(path_str)
         # five seconds ought to be enough
         s.settimeout(5)
         try:
-            print s.recv(4096)
+            self.process_responses(s.recv(4096), verbose=self.verbose)
         except timeout:
-            print "Timeout -- waited 5 seconds\n"
-
-    def test3(self, host, path="/"):
+            print "Timeout -- waited 5 seconds\n"    
+            
+    def test_fragment(self):
         print "## Test 3: Attempting to fragment: Testing Same IP, actual Virtual Host, fragmented packet"
         s = socket()
         s.setsockopt(IPPROTO_TCP, TCP_NODELAY, 1)
-        s.connect((host, 80))
-        path_str = "GET %s HTTP/1.1\r\n" % path
+        s.connect((self.host, 80))
+        path_str = "GET %s HTTP/1.1\r\n" % self.path
         s.send(path_str)
         # Sleep for a bit to ensure that the next packets goes through separately.
         # Not sure if we actually need it. Reducing it from 0.2 to 0.1 seconds
         time.sleep(0.1)
-        s.send("Host: " + host[0:2])
+        s.send("Host: "+self.host[0:2])
         time.sleep(0.1)
-        s.send(host[2:] + "\r\n\r\n")
+        s.send(self.host[2:]+"\r\n\r\n")
         try:
-            print s.recv(4096)
+            self.process_responses(s.recv(4096), verbose=self.verbose)
         except timeout:
-            print "Timeout -- waited 5 seconds\n"
+            print "Timeout -- waited 5 seconds\n"  
+
+    def process_responses(self, raw, verbose=False):
+        responses  = raw.split('\n')
+        status = responses[0].split(" ")
+        if status[1] == "200":
+            print "OK"
+        else:
+            print "warning"
+        if verbose:
+            print received 
 
 
-def getips(host, port=80):
-    """
-    See http://docs.python.org/2/library/socket.html#socket.getaddrinfo
-    """
-    addrs = getaddrinfo(host, port, 0, 0, SOL_TCP)
+def getips(host):
+    ips = os.popen('nslookup '+host).readlines()
     result = []
     for addr in addrs:
         sockaddr = addr[4]
@@ -80,20 +93,18 @@ def getips(host, port=80):
             # We take IPv4 addresses only. IPv6 will be ignored for now
             result.append(sockaddr[0])
     return result
-
-
-def testsingle(host, path="/"):
-    run = test()
-    run.test1(host, path="/")
-    run.test2(host, path="/")
-    run.test3(host, path="/")
-
-
-def testall(host, path="/"):
-    ips = getips(host)
+    
+def testsingle(host, path="/", verbose=False):
+    run = Test(host, path, verbose)
+    run.test_dns_ip_block() 
+    run.test_browser_emulation() 
+    run.test_fragment()
+    
+def testall(host, path="/", verbose=False):
+    ips = getips(host)                                                  
     if len(ips) > 0:
         for i in ips:
-            testsingle(i, path="/")
+            testsingle(i, path=path, verbose=verbose)
 
 
 def traceroute(host):
@@ -149,14 +160,15 @@ def main():
     parser.add_argument('--traceroute', help='Try to trace route to target host, require root access',
         metavar='1')
     parser.add_argument('--path', help='Set the path used to query', metavar='/')
-    parser.parse_args(namespace=target)
-
+    parser.add_argument('--verbose', help='Set verbose', metavar=False)
+    arguments = parser.parse_args(namespace=target)
+ 
     if target.tryall is None:
-        testsingle(target.host, target.path)
+        testsingle(target.host, target.path, verbose=target.verbose) 
         if target.traceroute is not None:
-            traceroute(target.host, target.path)
+            traceroute(target.host)
     else:
-        testall(target.host, target.path)
+        testall(target.host, target.path, verbose=target.verbose)
         if target.traceroute is not None:
             traceroute(target.host)
 
