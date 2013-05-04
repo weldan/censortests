@@ -15,6 +15,7 @@ import time
 import argparse
 import sys
 import os
+import re
 
 from socket import socket, IPPROTO_TCP, TCP_NODELAY, timeout, gethostbyname, \
     getprotobyname, AF_INET, SOL_IP, SOCK_RAW, SOCK_DGRAM, IP_TTL, gethostbyaddr, error, getaddrinfo, SOL_TCP
@@ -99,13 +100,12 @@ class FilterCheck(object):
 
 
 def getips(host):
-    ips = os.popen('nslookup '+host).readlines()
+    addrs = os.popen('nslookup '+host).readlines()
     result = []
     for addr in addrs:
-        sockaddr = addr[4]
-        if (addr[0] == 2):
-            # We take IPv4 addresses only. IPv6 will be ignored for now
-            result.append(sockaddr[0])
+        if re.match('Address: ', addr):
+            # where got ipv6.
+            result.append(re.sub('Address: ', '', re.sub('\n', '', addr)))
     return result
     
 def testsingle(host, path="/", verbose=False):
