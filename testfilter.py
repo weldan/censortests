@@ -14,6 +14,7 @@ Credits to https://forum.lowyat.net/index.php?showtopic=2794929&view=findpost&p=
 import time
 import argparse
 import sys
+import os
 
 from socket import socket, IPPROTO_TCP, TCP_NODELAY, timeout, gethostbyname, \
     getprotobyname, AF_INET, SOL_IP, SOCK_RAW, SOCK_DGRAM, IP_TTL, gethostbyaddr, error, getaddrinfo, SOL_TCP
