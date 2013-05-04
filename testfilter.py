@@ -13,6 +13,7 @@ Credits to https://forum.lowyat.net/index.php?showtopic=2794929&view=findpost&p=
 """
 import time
 import argparse
+import sys
 
 from socket import socket, IPPROTO_TCP, TCP_NODELAY, timeout, gethostbyname, \
     getprotobyname, AF_INET, SOL_IP, SOCK_RAW, SOCK_DGRAM, IP_TTL, gethostbyaddr, error, getaddrinfo, SOL_TCP
@@ -33,7 +34,11 @@ class FilterCheck(object):
         print "## Test 1: Check DNS, and IP block: Testing Same IP, different Virtual Host"
         s = socket()
         s.setsockopt(IPPROTO_TCP, TCP_NODELAY, 1)
-        s.connect((self.host, 80))
+        try:
+            s.connect((self.host, 80))
+        except error, (value, message):
+            print "ERROR: "+message
+            sys.exit(1)
         path_str = "GET %s HTTP/1.1\r\n\r\n" % self.path
         s.send(path_str)
         try: 
@@ -45,7 +50,11 @@ class FilterCheck(object):
         print "## Test 2: Emulating a real web browser: Testing Same IP, actual Virtual Host, single packet"
         s = socket()
         s.setsockopt(IPPROTO_TCP, TCP_NODELAY, 1)
-        s.connect((self.host, 80))
+        try:
+            s.connect((self.host, 80))
+        except error, (value, message):
+            print "ERROR: "+message
+            sys.exit(1)
         path_str = "GET %s HTTP/1.1\r\nHost: %s\r\n\r\n" % (self.path, self.host)
         s.send(path_str)
         # five seconds ought to be enough
@@ -59,7 +68,11 @@ class FilterCheck(object):
         print "## Test 3: Attempting to fragment: Testing Same IP, actual Virtual Host, fragmented packet"
         s = socket()
         s.setsockopt(IPPROTO_TCP, TCP_NODELAY, 1)
-        s.connect((self.host, 80))
+        try:
+            s.connect((self.host, 80))
+        except error, (value, message):
+            print "ERROR: "+message
+            sys.exit(1)
         path_str = "GET %s HTTP/1.1\r\n" % self.path
         s.send(path_str)
         # Sleep for a bit to ensure that the next packets goes through separately.
