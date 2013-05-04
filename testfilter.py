@@ -76,7 +76,7 @@ class FilterCheck(object):
     def process_responses(self, raw, verbose=False):
         responses  = raw.split('\n')
         status = responses[0].split(" ")
-        if status[1] == "200":
+        if len(status) > 1 and status[1] == "200":
             print "OK"
         else:
             print "warning"
